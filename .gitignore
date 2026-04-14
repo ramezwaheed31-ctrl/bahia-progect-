@@ -1,1 +1,1 @@
--e "node_modules/\nvenv/\n_pycache_/\n.env" 
+-e "venv/\node_modules/\n_pycache_/\n.env" 
