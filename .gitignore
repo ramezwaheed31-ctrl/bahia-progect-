@@ -1,1 +1,5 @@
--e "venv/\node_modules/\n_pycache_/\n.env" 
+venv/
+node_modules/
+_pycache_/
+.env
+.vscode/
