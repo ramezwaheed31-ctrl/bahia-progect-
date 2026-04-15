@@ -1,0 +1,1 @@
+-e "venv/\node_modules/\n_pycache_/\n.env" 
