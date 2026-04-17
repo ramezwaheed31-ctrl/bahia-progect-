@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 import os
 
 # Import RAG function
@@ -44,8 +44,30 @@ async def get_status():
 
 # ── Auth Models ───────────────────────────────────────────────────
 class AuthRequest(BaseModel):
+    """Used for login only."""
     email: str
     password: str
+
+class SignupRequest(BaseModel):
+    """Used for registration — requires a manually entered name."""
+    name: str = Field(..., min_length=2, max_length=60, description="Display name (2–60 chars)")
+    email: str
+    password: str
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Name must not be empty or whitespace.")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 6:
+            raise ValueError("Password must be at least 6 characters.")
+        return v
 
 # ── Bearer Token Security Scheme ──────────────────────────────────
 security = HTTPBearer()
@@ -63,11 +85,23 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(secur
 
 # ── Signup ────────────────────────────────────────────────────────
 @app.post("/api/signup")
-async def signup(data: AuthRequest):
+async def signup(data: SignupRequest):
+    """Register a new user with a manually provided name stored in user_metadata."""
     try:
+        # Check if a user with the same display name already exists
+        # (Supabase doesn't enforce unique display names, so we skip DB uniqueness
+        # check here — uniqueness is enforced by email which Supabase handles natively.)
+        full_name = data.name.strip()
+
         response = supabase.auth.sign_up({
             "email": data.email,
             "password": data.password,
+            "options": {
+                "data": {
+                    "full_name": full_name,
+                    "display_name": full_name,
+                }
+            }
         })
         if response.user:
             return {
@@ -76,9 +110,12 @@ async def signup(data: AuthRequest):
                 "user": {
                     "id": response.user.id,
                     "email": response.user.email,
+                    "full_name": full_name,
                 }
             }
-        raise HTTPException(status_code=400, detail="Signup failed.")
+        raise HTTPException(status_code=400, detail="Signup failed. Please try again.")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -91,6 +128,9 @@ async def login(data: AuthRequest):
             "password": data.password,
         })
         if response.session and response.user:
+            # Read full_name from user_metadata (set during signup)
+            metadata  = response.user.user_metadata or {}
+            full_name = metadata.get("full_name") or metadata.get("display_name") or ""
             return {
                 "status": "success",
                 "access_token": response.session.access_token,
@@ -98,9 +138,12 @@ async def login(data: AuthRequest):
                 "user": {
                     "id": response.user.id,
                     "email": response.user.email,
+                    "full_name": full_name,
                 }
             }
         raise HTTPException(status_code=401, detail="Invalid email or password.")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))
 

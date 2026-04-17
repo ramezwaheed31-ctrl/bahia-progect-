@@ -24,7 +24,6 @@ export default function Login({ onLogin, dark, onToggleDark, lang, onToggleLang 
 
     try {
       if (mode === "login") {
-        // ── Call FastAPI /api/login ──────────────────────────────
         const res = await fetch("http://127.0.0.1:8000/api/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -37,27 +36,43 @@ export default function Login({ onLogin, dark, onToggleDark, lang, onToggleLang 
           return;
         }
 
-        // data = { access_token, refresh_token, user: { id, email } }
+        // ✅ Name priority: Supabase user_metadata (full_name) → localStorage fallback for legacy accounts
+        const emailKey   = data.user.email.trim().toLowerCase();
+        const serverName = (data.user.full_name || "").trim();
+        const savedName  = (localStorage.getItem("bahia_name_" + emailKey) || "").trim();
+
+        // Use server name first; fall back to localStorage for accounts created before this change
+        const finalName  = serverName || savedName;
+
+        if (!finalName) {
+          // Edge-case: very old account with no name stored anywhere
+          setErr(lang === "ar"
+            ? "⚠️ لم يتم العثور على اسم مرتبط بهذا الحساب. يرجى التواصل مع الدعم."
+            : "⚠️ No name found for this account. Please contact support.");
+          return;
+        }
+
+        // Keep localStorage in sync with the authoritative server value
+        if (serverName) localStorage.setItem("bahia_name_" + emailKey, serverName);
+
         onLogin({
           token:    data.access_token,
           email:    data.user.email,
           id:       data.user.id,
-          name:     data.user.email.split("@")[0],
-          initials: data.user.email[0].toUpperCase(),
+          name:     finalName,
+          initials: finalName[0].toUpperCase(),
           role:     t.role,
         });
 
       } else {
-        // ── Validate form ────────────────────────────────────────
         if (!name.trim()) { setErr(t.nameMissing); return; }
         if (!email.trim()) { setErr(t.emailMissing || "أدخلي البريد الإلكتروني"); return; }
         if (!pass) { setErr(t.passMissing || "أدخلي كلمة المرور"); return; }
 
-        // ── Call FastAPI /api/signup ─────────────────────────────
         const res = await fetch("http://127.0.0.1:8000/api/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.trim(), password: pass }),
+          body: JSON.stringify({ email: email.trim(), password: pass, name: name.trim() }),
         });
         const data = await res.json();
 
@@ -65,6 +80,9 @@ export default function Login({ onLogin, dark, onToggleDark, lang, onToggleLang 
           setErr(data.detail || t.signupErr);
           return;
         }
+
+        // ✅ Save name locally so login screen can show it
+        localStorage.setItem("bahia_name_" + email.trim().toLowerCase(), name.trim());
 
         setErr("");
         setMode("login");
@@ -85,10 +103,16 @@ export default function Login({ onLogin, dark, onToggleDark, lang, onToggleLang 
 
   return (
     <div className="lw" dir={t.dir}>
-      {/* New Top Header Element */}
       <div style={{ position: "absolute", top: 20, left: 30, right: 30, display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 10, flexWrap: "wrap", gap: "15px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-          <div className="ll-logo" style={{ marginBottom: 0 }}><BahiaLogo size={30} />{t.appName}</div>
+          {/* ✅ Logo click → home */}
+          <div
+            className="ll-logo"
+            style={{ marginBottom: 0, cursor: "pointer" }}
+            onClick={() => window.location.href = '/'}
+          >
+            <BahiaLogo size={30} />{t.appName}
+          </div>
           <button className="tbtn" onClick={() => window.location.href = '/'}>
             🏠 {lang === 'ar' ? 'الرئيسية' : 'Back to Home'}
           </button>
@@ -100,7 +124,6 @@ export default function Login({ onLogin, dark, onToggleDark, lang, onToggleLang 
       </div>
 
       <div className="lcard" style={{ flexDirection: lang === "ar" ? "row" : "row-reverse", marginTop: "40px" }}>
-        {/* Left panel — branding */}
         <div className="ll">
           <div>
             <div className="ll-h">{t.loginHeroine}<br /><span>{t.loginHeroineSpan}</span></div>
@@ -111,7 +134,6 @@ export default function Login({ onLogin, dark, onToggleDark, lang, onToggleLang 
           </div>
         </div>
 
-        {/* Right panel — form */}
         <div className="lr">
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 }}>
             <div>
@@ -154,8 +176,8 @@ export default function Login({ onLogin, dark, onToggleDark, lang, onToggleLang 
               />
             </div>
             {err && <div className="lerr">{err}</div>}
-            <button className="lbtn" type="submit">
-              {isLogin ? t.loginBtn : t.signupBtn}
+            <button className="lbtn" type="submit" disabled={loading}>
+              {loading ? "..." : (isLogin ? t.loginBtn : t.signupBtn)}
             </button>
           </form>
 

@@ -3,7 +3,6 @@ import ReactMarkdown from "react-markdown";
 import BahiaLogo from "./BahiaLogo";
 import { translations } from "../i18n";
 
-// ── Helpers ────────────────────────────────────────────────────────
 function pickCards(pool) {
   if (!Array.isArray(pool) || pool.length === 0) return [];
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
@@ -14,11 +13,6 @@ function isArabic(text) {
   return typeof text === "string" && /[\u0600-\u06FF]/.test(text);
 }
 
-/**
- * Safely extract first name from a user object.
- * Works whether the user came from Supabase (only email/name)
- * or from the old local-storage auth (nameAr / nameEn).
- */
 function getFirstName(user, lang) {
   if (!user) return "";
   const raw =
@@ -29,38 +23,27 @@ function getFirstName(user, lang) {
   return str.split(" ")[0] || "";
 }
 
-// ── Component ──────────────────────────────────────────────────────
 export default function Chat({
-  user,
-  messages,
-  loading,
-  onSend,
-  onDeleteMessage,
-  lang,
-  onToggleLang,
-  dark,
-  onToggleDark,
-  onToggleSidebar,
+  user, messages, loading, onSend, onDeleteMessage,
+  lang, onToggleLang, dark, onToggleDark, onToggleSidebar,
 }) {
   const [input,       setInput]       = useState("");
   const [contextMenu, setContextMenu] = useState(null);
   const [renderError, setRenderError] = useState(null);
-  const endRef = useRef(null);
+  const [imageFile,   setImageFile]   = useState(null);   // { file, preview, base64 }
+  const endRef    = useRef(null);
+  const fileRef   = useRef(null);
 
-  // Guard: if translations for this lang don't exist, fall back to "ar"
   const t = translations[lang] ?? translations["ar"];
 
-  // Memoised card selection — recomputes only when lang changes
   const shownCards = useMemo(() => {
     try { return pickCards(t.welcomeCards); } catch { return []; }
-  }, [lang]);           // ← only lang, NOT t, to avoid infinite loops
+  }, [lang]);
 
-  // Auto-scroll to latest message
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Close context menu on outside click
   useEffect(() => {
     if (!contextMenu) return;
     const close = () => setContextMenu(null);
@@ -68,12 +51,24 @@ export default function Chat({
     return () => document.removeEventListener("click", close);
   }, [contextMenu]);
 
-  // ── Handlers ──────────────────────────────────────────────────────
+  async function handleImagePick(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageFile({ file, preview: URL.createObjectURL(file), base64: reader.result.split(",")[1] });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ""; // allow re-select same file
+  }
+
   function send(text) {
     try {
-      if (!text?.trim() || loading) return;
-      onSend(text.trim());
+      if ((!text?.trim() && !imageFile) || loading) return;
+      onSend(text.trim(), imageFile);
       setInput("");
+      setImageFile(null);
     } catch (err) {
       console.error("send() error:", err);
     }
@@ -96,38 +91,34 @@ export default function Chat({
     }
   }
 
-  // ── Derived values ────────────────────────────────────────────────
   const safeMessages = Array.isArray(messages) ? messages : [];
   const empty        = safeMessages.length === 0 && !loading;
   const firstName    = getFirstName(user, lang);
 
-  // ── Error boundary fallback ───────────────────────────────────────
   if (renderError) {
     return (
       <div style={{ padding: 40, textAlign: "center", color: "var(--text)" }}>
         <h2>⚠️ Something went wrong</h2>
         <p style={{ color: "var(--text-muted)", marginTop: 10 }}>{renderError}</p>
-        <button
-          onClick={() => setRenderError(null)}
-          style={{ marginTop: 20, padding: "8px 20px", cursor: "pointer" }}
-        >
+        <button onClick={() => setRenderError(null)} style={{ marginTop: 20, padding: "8px 20px", cursor: "pointer" }}>
           Try Again
         </button>
       </div>
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────────
   try {
     return (
-      <div
-        style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}
-        dir={t.dir}
-      >
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }} dir={t.dir}>
         {/* ── Top bar ── */}
         <div className="topbar">
           <div style={{ display: "flex", alignItems: "center" }}>
-            <div className="t-title">
+            {/* ✅ Click logo or title → home */}
+            <div
+              className="t-title"
+              onClick={() => window.location.href = '/'}
+              title={lang === "ar" ? "الرئيسية" : "Go to Home"}
+            >
               <BahiaLogo size={24} />
               {t.appName}
             </div>
@@ -176,6 +167,9 @@ export default function Chat({
                     dir={isArabic(m.text) ? "rtl" : "ltr"}
                     style={{ textAlign: isArabic(m.text) ? "right" : "left" }}
                   >
+                    {m.imagePreview && (
+                      <img src={m.imagePreview} alt="" style={{ display: "block", maxWidth: 220, maxHeight: 180, borderRadius: 10, marginBottom: m.text ? 8 : 0, objectFit: "cover" }} />
+                    )}
                     {m.role === "ai" ? (
                       <ReactMarkdown>{m.text ?? ""}</ReactMarkdown>
                     ) : (
@@ -187,7 +181,6 @@ export default function Chat({
               </div>
             ))}
 
-            {/* Typing dots */}
             {loading && (
               <div className="mrow ai">
                 <div className="mav ai"><BahiaLogo size={20} /></div>
@@ -201,17 +194,37 @@ export default function Chat({
           </div>
         )}
 
-        {/* ── Disclaimer ── */}
         <div className="disc">{t.disclaimer}</div>
 
-        {/* ── Input zone ── */}
         <div className="izone">
           <div className="chips">
             {(t.quickChips ?? []).map((c) => (
               <button key={c} className="chip" onClick={() => send(c)}>{c}</button>
             ))}
           </div>
+          {/* ✅ Image preview strip */}
+          {imageFile && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 10px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10 }}>
+              <img src={imageFile.preview} alt="" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 7, border: "1px solid var(--border)" }} />
+              <div style={{ flex: 1, fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{imageFile.file.name}</div>
+              <button onClick={() => setImageFile(null)} style={{ background: "transparent", border: "none", color: "var(--danger)", fontSize: 16, cursor: "pointer", padding: "0 4px" }}>✕</button>
+            </div>
+          )}
           <div className="irow">
+            {/* ✅ Image upload button */}
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImagePick} />
+            <button
+              className="ibtn"
+              onClick={() => fileRef.current?.click()}
+              title={lang === "ar" ? "إرفاق صورة" : "Attach image"}
+              disabled={loading}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="3" ry="3"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </button>
             <textarea
               className="ta"
               rows={1}
@@ -225,14 +238,13 @@ export default function Chat({
             <button
               className="sbtn"
               onClick={() => send(input)}
-              disabled={!input.trim() || loading}
+              disabled={(!input.trim() && !imageFile) || loading}
             >
               ↑
             </button>
           </div>
         </div>
 
-        {/* ── Context menu ── */}
         {contextMenu && (
           <div
             className="ctx-menu"
@@ -247,7 +259,6 @@ export default function Chat({
       </div>
     );
   } catch (err) {
-    // If render itself throws, show the fallback instead of white screen
     console.error("Chat render error:", err);
     setRenderError(err.message ?? "Unknown render error");
     return null;

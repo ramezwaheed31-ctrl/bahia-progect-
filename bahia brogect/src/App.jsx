@@ -15,7 +15,6 @@ export default function App() {
   const [dark,     setDark]     = useState(() => LS.get("cg_dark", false));
   const [lang,     setLang]     = useState(() => LS.get("cg_lang", "ar"));
   const [user,     setUser]     = useState(() => LS.get("cg_user", null));
-  // Token stored separately so it survives a page refresh
   const [token,    setToken]    = useState(() => localStorage.getItem("bahia_token") || null);
   const [history,  setHistory]  = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -40,19 +39,10 @@ export default function App() {
   useEffect(() => { LS.set("cg_lang", lang); },  [lang]);
   useEffect(() => { LS.set("cg_user", user); },  [user]);
 
-  // Persist token to localStorage whenever it changes
   useEffect(() => {
     if (token) localStorage.setItem("bahia_token", token);
     else       localStorage.removeItem("bahia_token");
   }, [token]);
-
-  // Restore chat history when user changes
-  useEffect(() => {
-    if (user) {
-      const h = LS.get("cg_hist_" + user.email, []);
-      setHistory(h);
-    }
-  }, [user]);
 
   const t = translations[lang];
 
@@ -68,9 +58,7 @@ export default function App() {
     }));
   };
 
-  // handleLogin — called by Login.jsx after a successful Supabase auth
   function handleLogin(userData) {
-    // userData = { token, email, id, name, initials, role }
     const { token: newToken, ...rest } = userData;
     setToken(newToken);
     setUser(rest);
@@ -79,7 +67,6 @@ export default function App() {
     setSbOpen(true);
   }
 
-  // handleLogout — clears all auth state
   function handleLogout() {
     if (user) LS.set("cg_hist_" + user.email, history);
     localStorage.removeItem("bahia_token");
@@ -101,10 +88,53 @@ export default function App() {
     setMessages([]);
   }
 
-  function handleSend(text) {
+  // ✅ Delete a single conversation from history
+  function handleDeleteConv(convId) {
+    // If it's the active conversation, clear messages
+    if (activeIdRef.current === convId) {
+      setActiveId(null);
+      activeIdRef.current = null;
+      setMessages([]);
+    }
+    // Remove from history
+    setHistory(prev => {
+      const next = prev.filter(h => h.id !== convId);
+      if (user) LS.set("cg_hist_" + user.email, next);
+      return next;
+    });
+    // Remove stored messages for this conv
+    localStorage.removeItem("cg_msgs_" + convId);
+  }
+
+  // ✅ Delete ALL history
+  function handleDeleteAllHistory() {
+    // Clear stored messages for each conversation
+    history.forEach(h => localStorage.removeItem("cg_msgs_" + h.id));
+    setHistory([]);
+    setActiveId(null);
+    activeIdRef.current = null;
+    setMessages([]);
+    if (user) LS.set("cg_hist_" + user.email, []);
+  }
+
+  // ✅ Update display name
+  function handleUpdateName(newName) {
+    setUser(u => {
+      const updated = { ...u, name: newName, initials: newName[0].toUpperCase() };
+      LS.set("cg_user", updated);
+      return updated;
+    });
+  }
+
+  function handleSend(text, imageFile = null) {
     const currentLang = langRef.current;
     const tr = translations[currentLang];
-    const userMsg = { id: Date.now(), role: "user", text, time: nowTime(currentLang) };
+    const title = text.trim() || (imageFile ? (currentLang === "ar" ? "صورة" : "Image") : "...");
+    const userMsg = {
+      id: Date.now(), role: "user", text,
+      imagePreview: imageFile?.preview || null,   // for display
+      time: nowTime(currentLang),
+    };
 
     setMessages(prev => {
       const updated = [...prev, userMsg];
@@ -116,7 +146,7 @@ export default function App() {
 
     if (!activeIdRef.current) {
       const newId = Date.now();
-      const item  = { id: newId, title: text, date: tr.historyToday, preview: text };
+      const item  = { id: newId, title, date: tr.historyToday, preview: title };
       activeIdRef.current = newId;
       setActiveId(newId);
       setHistory(prev => {
@@ -127,29 +157,30 @@ export default function App() {
       LS.set("cg_msgs_" + newId, [userMsg]);
     }
 
-    // ── Guard: must have a token before calling protected API ──
     const currentToken = token || localStorage.getItem("bahia_token");
-    if (!currentToken) {
-      // No token → force logout so the Login page appears
-      handleLogout();
-      return;
+    if (!currentToken) { handleLogout(); return; }
+
+    // ✅ Build body — include base64 image if present
+    const body = { text, lang: currentLang };
+    if (imageFile?.base64) {
+      body.image_base64 = imageFile.base64;
+      body.image_type   = imageFile.file.type;   // e.g. "image/jpeg"
     }
 
     fetch("http://127.0.0.1:8000/api/chat", {
       method: "POST",
       headers: {
         "Content-Type":  "application/json",
-        "Authorization": `Bearer ${currentToken}`,   // ← JWT injected here
+        "Authorization": `Bearer ${currentToken}`,
       },
-      body: JSON.stringify({ text, lang: currentLang })
+      body: JSON.stringify(body)
     })
     .then(r => {
-      // 401 means the token expired or was revoked → force logout
       if (r.status === 401) { handleLogout(); return null; }
       return r.json();
     })
     .then(data => {
-      if (!data) return;  // was nulled by 401 handler above
+      if (!data) return;
       const aiMsg = { id: Date.now() + 1, role: "ai", text: data.reply || tr.aiPlaceholder, time: nowTime(currentLang) };
       setMessages(prev => {
         const final = [...prev, aiMsg];
@@ -212,6 +243,10 @@ export default function App() {
             onToggleLang={toggleLang}
             open={sbOpen}
             onToggle={() => setSbOpen(!sbOpen)}
+            onDeleteConv={handleDeleteConv}
+            onDeleteAllHistory={handleDeleteAllHistory}
+            onUpdateName={handleUpdateName}
+            token={token}
           />
 
           <div className="main">

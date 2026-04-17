@@ -1,5 +1,23 @@
+# Python environment
 venv/
-node_modules/
+.venv/
+env/
+
+# Python cache
 _pycache_/
-.env
-.vscode/
+*.pyc
+*.pyo
+*.pyd
+
+# Frontend dependencies
+node_modules/
+dist/
+build/
+
+# Local database/logs
+*.db
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
