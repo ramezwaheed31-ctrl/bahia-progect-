@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+pydantic[email]
+python-multipart
+supabase
+tensorflow-cpu
+numpy
+pillow
+httpx
+python-dotenv
+pandas
+scikit-learn
+langdetect
+duckduckgo-search
+setuptools
