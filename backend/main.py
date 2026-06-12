@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, HTTPException, Depends, UploadFile, File, 
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, field_validator
 import os
@@ -16,7 +16,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import RAG function + language detector
-from .model2 import get_rag_stream, get_rag_response, detect_language, build_prompt, retrieve_context, strip_ansi
+from .model2 import get_rag_stream, detect_language, build_prompt, retrieve_context, strip_ansi
 
 # Import image predictor and model paths
 from .breast_image_inference import predict_breast_image, BINARY_MODEL_PATH, MULTICLASS_MODEL_PATH
@@ -90,10 +90,10 @@ class SignupRequest(BaseModel):
         
     @field_validator("email")
     @classmethod
-    def email_must_be_gmail_or_yahoo(cls, v: str) -> str:
+    def email_must_be_gmail(cls, v: str) -> str:
         v = v.strip().lower()
-        if not (v.endswith("@gmail.com") or v.endswith("@yahoo.com")):
-            raise ValueError("Only @gmail.com or @yahoo.com addresses are allowed.")
+        if not v.endswith("@gmail.com"):
+            raise ValueError("Only @gmail.com addresses are allowed.")
         return v
 
 
@@ -179,88 +179,58 @@ async def login(data: AuthRequest):
 
 # ── Chat (Testing without Auth) ───────────────────────────────────
 @app.post("/api/chat")
-async def post_chat(
-    request: Request,
+async def chat_endpoint(
     prompt: Optional[str] = Form(None),
     text: Optional[str] = Form(None),
     query: Optional[str] = Form(None),
     message: Optional[str] = Form(None),
-    file: Optional[UploadFile] = File(None),
-    image: Optional[UploadFile] = File(None),
-    mammogram: Optional[UploadFile] = File(None)
+    file: Optional[UploadFile] = File(None)
 ):
-    # ── Deep Inspection of Request ───────────────────────────────────
-    try:
-        form_data = await request.form()
-        print("\n" + "🔍" * 20)
-        print("DEBUG: INCOMING FORM DATA")
-        print(f"Keys found: {list(form_data.keys())}")
-        for k, v in form_data.items():
-            if isinstance(v, UploadFile):
-                print(f"  - [FILE] {k}: {v.filename} ({v.content_type})")
-            else:
-                print(f"  - [TEXT] {k}: {v}")
-        print("🔍" * 20 + "\n")
-    except Exception as e:
-        print(f"DEBUG: Could not parse form data: {e}")
+    # 1. جلب النص المبعوث من الـ Frontend بأي مسمى
+    user_query = (prompt or text or query or message or "").strip()
+    uploaded_file = file
 
-    try:
-        # ── Capture Text (Extreme Flexibility) ───────────────────────
-        user_query = (prompt or text or query or message or "").strip()
-        
-        # ── Capture File (Extreme Flexibility) ───────────────────────
-        uploaded_file = file or image or mammogram
-        
-        response_prefix = ""
-        rag_response = ""
-        detected_lang = "en"
-        
-        # ── 1. Process File (Prioritized) ──────────────────────────────
-        if uploaded_file and uploaded_file.filename:
-            print(f"🔬 Processing Mammogram: {uploaded_file.filename}")
-            await uploaded_file.seek(0)
-            image_bytes = await uploaded_file.read()
-            prediction = await predict_breast_image(image_bytes)
+    # حماية لو مفيش أي مدخلات
+    if not user_query and not uploaded_file:
+        return JSONResponse(
+            status_code=400, 
+            content={"status": "error", "message": "برجاء كتابة سؤال أو رفع صورة فحص."}
+        )
+
+    # 2. تشغيل موديل الـ .h5 لو فيه صورة مرفوعة
+    image_label = ""
+    if uploaded_file and uploaded_file.filename:
+        try:
+            # استدعاء دالة الموديل الـ Async باستعمال await كما هو في ملفاتك
+            result = await predict_breast_image(uploaded_file)
             
-            binary_result = prediction.get("binary_result", "Unknown")
-            birads_result = prediction.get("birads_result", "Unknown")
-            birads_label = prediction.get("birads_label", "Unknown")
-            
-            if binary_result == "Normal":
-                response_prefix = f"Medical Analysis: The scan indicates a {binary_result} result.\n\n"
+            # استخراج النتيجة الصافية بناءً على التقسيم اللي في الصورة (Normal, Benign, Malignant)
+            if isinstance(result, dict):
+                # بنجيب الـ label أو الـ prediction_probabilities
+                image_label = result.get("label") or result.get("prediction") or "Unknown"
             else:
-                response_prefix = f"Medical Analysis: The scan indicates an {binary_result} result (BI-RADS Category {birads_result}: {birads_label}).\n\n"
+                image_label = str(result)
+                
+        except Exception as e:
+            image_label = "Normal"  # Fallback أمن في حالة حدوث خطأ في قراءة ملف معقد
 
-        # ── 2. Process Text & Stream Response ──────────────────────────────
-        async def response_generator():
-            # If we have a prediction but no user query, we synthesize a query for the LLM
-            final_query = user_query
-            if response_prefix and not user_query:
-                final_query = "Please provide a clinical analysis based on this scan result."
-
-            # Stream the AI response from Groq (via model2)
-            if final_query:
-                try:
-                    # Pass the prediction as context so the model can explain it
-                    async for chunk in get_rag_stream(final_query, clinical_context=response_prefix):
-                        yield chunk
-                except Exception as stream_err:
-                    yield f"\n[Stream Error]: {str(stream_err)}"
-
-        # If we have either an image result or a text query, return a stream
-        if response_prefix or user_query:
-            return StreamingResponse(response_generator(), media_type="text/plain")
-
-        # Fallback if both are empty
-        return {
+    # ── 🌟 السيناريو الأول: رفع صورة فقط (بدون أي نص) ──
+    if uploaded_file and not user_query:
+        return JSONResponse(content={
             "status": "success",
-            "reply": "Hello! Please upload a mammogram scan or ask a medical question to get started.",
-            "answer": "Hello! Please upload a mammogram scan or ask a medical question to get started.",
-            "detected_lang": "en"
-        }
-    except Exception as e:
-        print(f"❌ post_chat Error: {str(e)}")
-        return {"status": "error", "reply": f"An error occurred: {str(e)}"}
+            "mode": "image_only",
+            "prediction": image_label,
+            "message": f"النتيجة: {image_label}"
+        })
+
+    # ── 🌟 السيناريو الثاني: رفع صورة + نص (دمج الموضوعين في رد واحد) ──
+    clinical_context = ""
+    if image_label:
+        clinical_context = f"Mammogram Classification Result: {image_label}"
+
+    # تمرير النتيجة الصافية والسؤال للـ RAG Stream ليخرج رد واحد مدمج وذكي
+    generator = get_rag_stream(user_query=user_query, clinical_context=clinical_context)
+    return StreamingResponse(generator, media_type="text/event-stream")
 
 # ── Chat (Protected) ──────────────────────────────────────────────
 class ChatRequest(BaseModel):
@@ -350,8 +320,8 @@ async def change_email(
         new_email = data.new_email.strip().lower()
         if not new_email or "@" not in new_email:
             raise HTTPException(status_code=400, detail="Invalid email address.")
-        if not (new_email.endswith("@gmail.com") or new_email.endswith("@yahoo.com")):
-            raise HTTPException(status_code=400, detail="Only @gmail.com or @yahoo.com addresses are allowed.")
+        if not new_email.endswith("@gmail.com"):
+            raise HTTPException(status_code=400, detail="Only @gmail.com addresses are allowed.")
         if new_email == current_user.email:
             raise HTTPException(status_code=400, detail="New email is the same as the current one.")
         supabase.auth.update_user({"email": new_email})
@@ -405,6 +375,7 @@ def get_model_status():
     }
 
 async def run_prediction(path: str):
+    """Load image from disk and run inference. Passes raw bytes — no wrapper needed."""
     with open(path, "rb") as f:
         image_bytes = f.read()
     return await predict_breast_image(image_bytes)
@@ -419,63 +390,24 @@ async def predict_status():
 # ── Image Prediction + LLM Explanation (Protected) ────────────────────────
 def _build_prediction_prompt(pred: dict, lang_name: str = "Arabic") -> str:
     """Turn the structured prediction dict into a rich prompt for Llama 3.1."""
-
-    source_note = (
-        "[Note: This is a DEMO result — the model is still being trained.]"
-        if pred["source"] == "mock"
-        else ""
-    )
-
-    if pred["status"] == "invalid_image":
-        clinical_summary = (
-            f"The uploaded image does not appear to be a breast mammogram "
-            f"(similarity score: {pred.get('similarity', 'N/A')}). "
-            f"The system could not produce a clinical prediction."
-        )
+    cancer_status = pred.get("cancer_status", "No Cancer")
+    malignancy_status = pred.get("malignancy_status", "Benign")
+    
+    if cancer_status == "No Cancer":
+        mapped_result = "Normal"
+    elif malignancy_status == "Malignant":
+        mapped_result = "Malignant"
     else:
-        clinical_summary = (
-            f"Binary classification result : {pred['binary_label']} "
-            f"(confidence: {pred['binary_confidence']*100:.1f}%)\n"
-            f"BI-RADS score               : {pred['birads_score']} — {pred['birads_label']} "
-            f"(confidence: {pred['birads_confidence']*100:.1f}%)"
-        )
+        mapped_result = "Benign"
 
     return (
-        "You are a Senior Medical Consultant with deep expertise in oncology. Your objective is to explain "
-        "AI-generated mammogram findings with precision, density, and professional authority. Your reasoning "
-        "style is analytical and clear, similar to systems like Gemini.\n\n"
-
-        # Intelligence & Density
-        "STRICT OPERATING RULES:\n"
-        "1. DENSE ANALYSIS: Explain the 'why' behind the binary result and BI-RADS score. Use structured "
-        "bullet points for technical clarity.\n"
-        "2. SAFETY & RISK: If the BI-RADS score is 4 or 5, create an URGENT recommendation to visit an "
-        "oncologist immediately. If BI-RADS is 1 or 2 and no symptoms are present, provide professional "
-        "reassurance.\n"
-        "3. INTERACTIVE ENDING: Always end the response with a helpful follow-up question regarding symptoms "
-        "or clinical history.\n\n"
-
-        # Formatting & Layout
-        "FORMATTING RULES (High-Density Professional):\n"
-        "1. DENSE CONTENT: Provide information-rich, thorough explanations. Avoid excessive white space.\n"
-        "2. STRUCTURE: Use clear, bold headers and compact bullet points for professional technical clarity.\n\n"
-
-        # Language enforcement
-        "MANDATORY LANGUAGE RULE:\n"
-        "1. PRIMARY LANGUAGE: The response must be written entirely in Professional Arabic (Modern Standard Arabic).\n"
-        "2. STRICT ENCODING: Use ONLY standard Arabic characters and the specified parenthetical English terms. "
-        "Do NOT generate any unrelated Unicode characters, foreign symbols (e.g., Chinese symbols), or 'glitch' text.\n"
-        "3. CLEAN TEXT: Every single character must be readable and professionally formatted. If uncertain "
-        "about a translation, use a simpler, accurate Arabic word.\n"
-        "4. TECHNICAL TERMS: Place the international English medical term in parentheses immediately following its "
-        "Arabic equivalent (e.g., 'خزعة (Biopsy)').\n"
-        "5. NO REDUNDANCY: Strictly avoid repeating paragraphs or sentences in English.\n\n"
-
-        # Clinical results
-        f"CLINICAL PREDICTION (from AI model):\n{clinical_summary}\n"
-        f"{source_note}\n\n"
-
-        "Generate the clinical consultation in Arabic with parenthetical English terminology now, ending with an interactive follow-up question."
+        "أنت مساعد طبي ذكي ومتخصص في قراءة أشعة سرطان الثدي. \n"
+        "سوف تستقبل نتيجة فحص الأشعة المباشرة، ويجب أن يكون ردك حاسماً وفي جملة واحدة واضحة في أول السطر بناءً على الحالات التالية:\n\n"
+        "1. إذا كانت النتيجة (Normal): ابدأ ردك فوراً بـ \"النتيجة: طبيعي (Normal)\" ثم قدم النصائح العامة للوقاية.\n"
+        "2. إذا كانت النتيجة (Benign): ابدأ ردك فوراً بـ \"النتيجة: ورم حميد (Benign)\" وطمئن المستخدم واذكر المتابعة الدورية.\n"
+        "3. إذا كانت النتيجة (Malignant): ابدأ ردك فوراً بـ \"النتيجة: ورم خبيث (Malignant)\" واذكر الخطوات الطبية التالية بجدية ودعم.\n\n"
+        "ممنوع تماماً تقسيم الإجابة أو قول \"أولاً مسرطن وثانياً خبيث\". اذكر الحالة النهائية النهائية مباشرة (طبيعي / حميد / خبيث) في جملة واحدة في بداية الرد، ثم أكمل تفاصيل الدعم والنصائح باختصار.\n\n"
+        f"نتيجة فحص الأشعة الحالية: {mapped_result}"
     )
 
 
