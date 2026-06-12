@@ -27,67 +27,69 @@ def load_models():
     return _model, _model
 
 async def predict_breast_image(file_or_bytes) -> dict:
-    import io
-    import time
-    from PIL import Image
-    import numpy as np
-
     ts = time.time()
-    
+
     if hasattr(file_or_bytes, "read"):
         image_bytes = await file_or_bytes.read()
         await file_or_bytes.seek(0)
     else:
         image_bytes = file_or_bytes
 
-    image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-    resized_img = image.resize((224, 224))
-    img_array = np.array(resized_img).astype(np.float32) / 255.0
+    # --- القراءة الاحترافية لـ EfficientNet (عشان نمنع الـ Normal Bias) ---
+    img_tensor = tf.image.decode_image(image_bytes, channels=3, expand_animations=False)
+    img_tensor = tf.image.resize(img_tensor, [224, 224])
+    
+    img_array = img_tensor.numpy()
     img_array = np.expand_dims(img_array, axis=0)
+    
+    from tensorflow.keras.applications.efficientnet import preprocess_input
+    img_array = preprocess_input(img_array)
 
+    # --- Prediction ---
     prediction_probabilities = _model.predict(img_array, verbose=0)
     predicted_idx = int(np.argmax(prediction_probabilities[0]))
-    
+
+    # --- الترتيب المتطابق مع النوت بوك بالملي ---
     if predicted_idx == 0:
-        mapped_result = "Normal"
-        cancer_status = "No Cancer"
-        malignancy_status = "Benign"
-    elif predicted_idx == 1:
         mapped_result = "Benign"
         cancer_status = "Cancer"
         malignancy_status = "Benign"
-    else:
+    elif predicted_idx == 1:
         mapped_result = "Malignant"
         cancer_status = "Cancer"
         malignancy_status = "Malignant"
+    else:
+        mapped_result = "Normal"
+        cancer_status = "No Cancer"
+        malignancy_status = "Benign"
 
     return {
-        "status":            "success",
-        "source":            "model",
-        "prediction":        mapped_result,
-        "label":             mapped_result,
-        "binary_label":      mapped_result,
-        "cancer_status":     cancer_status,
+        "status": "success",
+        "source": "model",
+        "prediction": mapped_result,
+        "label": mapped_result,
+        "binary_label": mapped_result,
+        "cancer_status": cancer_status,
         "malignancy_status": malignancy_status,
-        "raw_probs":         prediction_probabilities[0].tolist()
+        "raw_probs": prediction_probabilities[0].tolist()
     }
 
-# ── Direct upload endpoint ─────────────────────────────────────────────────────
+
+# --- Direct upload endpoint ---
 @router.post("/api/v1/mammogram/upload")
 async def upload_mammogram(file: UploadFile = File(...)):
     fname = (file.filename or "").lower()
     if not fname.endswith((".jpg", ".jpeg", ".png")):
         raise HTTPException(
             status_code=400,
-            detail="Invalid file type. Please upload a .jpg or .png image.",
+            detail="Invalid file type. Please upload a .jpg or .png image."
         )
-
+        
     try:
         result = await predict_breast_image(file)
+        return result
     except Exception as exc:
         raise HTTPException(
             status_code=500,
-            detail=f"Prediction failed: {exc}",
-        ) from exc
-
-    return result
+            detail=f"Prediction failed: {exc}"
+        )

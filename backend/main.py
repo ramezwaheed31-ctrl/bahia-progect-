@@ -413,8 +413,7 @@ def _build_prediction_prompt(pred: dict, lang_name: str = "Arabic") -> str:
 
 @app.post("/api/predict")
 async def predict_image(
-    file: UploadFile = File(...),
-    current_user=Depends(verify_token),
+    file: UploadFile = File(...)
 ):
     """
     Accepts an uploaded mammogram image, runs the predictor, then asks
@@ -434,15 +433,15 @@ async def predict_image(
             tmp_path = tmp.name
 
         print("\n" + "="*50)
-        print(f"🩻 Predict request from : {current_user.email}")
+        print(f" Predict request from : Test User")
         print(f"📁 Temp file            : {tmp_path}")
 
-        # ── 2. Run model (never raises) ────────────────────────────────────
+        # — 2. Run model (never raises) ————————————————————
         prediction = await run_prediction(tmp_path)
-        print(f"🔬 Prediction source    : {prediction['source']}")
-        print(f"📊 Result              : {prediction['binary_label']} | "
-              f"BI-RADS {prediction['birads_score']}")
-
+        
+        print("============== MODEL OUTPUT ==============")
+        print(prediction)
+        print("==========================================")
         # ── 3. Detect language (default Arabic for this project) ───────────
         # We don't have a text query here, so we default to Arabic.
         # If the frontend sends a `lang` query param in the future, use that.
