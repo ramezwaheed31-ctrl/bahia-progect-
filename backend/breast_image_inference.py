@@ -4,10 +4,11 @@ import time
 import numpy as np
 import tensorflow as tf
 from PIL import Image
+from tensorflow.keras.utils import load_img, img_to_array
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from tensorflow.keras.applications.efficientnet import preprocess_input
 
 router = APIRouter()
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "breast_cancer_model.keras")
 if not os.path.exists(MODEL_PATH):
@@ -35,17 +36,16 @@ async def predict_breast_image(file_or_bytes) -> dict:
     else:
         image_bytes = file_or_bytes
 
-    # --- القراءة الاحترافية لـ EfficientNet (عشان نمنع الـ Normal Bias) ---
-    img_tensor = tf.image.decode_image(image_bytes, channels=3, expand_animations=False)
-    img_tensor = tf.image.resize(img_tensor, [224, 224])
-    
-    img_array = img_tensor.numpy()
+    # --- القراءة الاحترافية لـ EfficientNet ---
+    img = load_img(
+        io.BytesIO(image_bytes),
+        target_size=(224, 224)
+    )
+
+    img_array = img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
-    
-    from tensorflow.keras.applications.efficientnet import preprocess_input
     img_array = preprocess_input(img_array)
 
-    # --- Prediction ---
     prediction_probabilities = _model.predict(img_array, verbose=0)
     predicted_idx = int(np.argmax(prediction_probabilities[0]))
 
@@ -59,9 +59,9 @@ async def predict_breast_image(file_or_bytes) -> dict:
         cancer_status = "Cancer"
         malignancy_status = "Malignant"
     else:
-        mapped_result = "Normal"
-        cancer_status = "No Cancer"
-        malignancy_status = "Benign"
+        mapped_result = "Malignant"
+        cancer_status = "Cancer"
+        malignancy_status = "Malignant"
 
     return {
         "status": "success",

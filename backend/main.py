@@ -1,3 +1,7 @@
+from .database import supabase
+from backend.breast_image_inference import router as mammogram_router
+from backend.breast_image_inference import predict_breast_image, BINARY_MODEL_PATH, MULTICLASS_MODEL_PATH
+from .model2 import get_rag_stream, detect_language, build_prompt, retrieve_context, strip_ansi
 from fastapi import FastAPI, Request, HTTPException, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -16,14 +20,10 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import RAG function + language detector
-from .model2 import get_rag_stream, detect_language, build_prompt, retrieve_context, strip_ansi
 
 # Import image predictor and model paths
-from .breast_image_inference import predict_breast_image, BINARY_MODEL_PATH, MULTICLASS_MODEL_PATH
-from .breast_image_inference import router as mammogram_router
 
 # Import Supabase client
-from .database import supabase
 
 app = FastAPI()
 
@@ -51,24 +51,32 @@ FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend")
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
+
 @app.get("/")
 async def read_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 # ── Status ────────────────────────────────────────────────────────
+
+
 @app.get("/api/status")
 async def get_status():
-    return {"status": "success", "message": "Connected successfully to FastAPI backend!"}
+    return {"status": "success",
+            "message": "Connected successfully to FastAPI backend!"}
 
 # ── Auth Models ───────────────────────────────────────────────────
+
+
 class AuthRequest(BaseModel):
     """Used for login only."""
     email: str
     password: str
 
+
 class SignupRequest(BaseModel):
     """Used for registration — requires a manually entered name."""
-    name: str = Field(..., min_length=2, max_length=60, description="Display name (2–60 chars)")
+    name: str = Field(..., min_length=2, max_length=60,
+                      description="Display name (2–60 chars)")
     email: str
     password: str
 
@@ -87,7 +95,6 @@ class SignupRequest(BaseModel):
             raise ValueError("Password must be at least 6 characters.")
         return v
 
-        
     @field_validator("email")
     @classmethod
     def email_must_be_gmail(cls, v: str) -> str:
@@ -100,18 +107,25 @@ class SignupRequest(BaseModel):
 # ── Bearer Token Security Scheme ──────────────────────────────────
 security = HTTPBearer()
 
-async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+
+async def verify_token(
+        credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Dependency: verifies the Supabase JWT. Returns the user if valid."""
     token = credentials.credentials
     try:
         response = supabase.auth.get_user(token)
         if not response or not response.user:
-            raise HTTPException(status_code=401, detail="Invalid or expired token.")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired token.")
         return response.user
     except Exception:
-        raise HTTPException(status_code=401, detail="Unauthorized. Please log in again.")
+        raise HTTPException(status_code=401,
+                            detail="Unauthorized. Please log in again.")
 
 # ── Signup ────────────────────────────────────────────────────────
+
+
 @app.post("/api/signup")
 @app.post("/api/signup/")
 async def signup(data: SignupRequest):
@@ -119,7 +133,8 @@ async def signup(data: SignupRequest):
     try:
         # Check if a user with the same display name already exists
         # (Supabase doesn't enforce unique display names, so we skip DB uniqueness
-        # check here — uniqueness is enforced by email which Supabase handles natively.)
+        # check here — uniqueness is enforced by email which Supabase handles
+        # natively.)
         full_name = data.name.strip()
 
         response = supabase.auth.sign_up({
@@ -142,13 +157,16 @@ async def signup(data: SignupRequest):
                     "full_name": full_name,
                 }
             }
-        raise HTTPException(status_code=400, detail="Signup failed. Please try again.")
+        raise HTTPException(status_code=400,
+                            detail="Signup failed. Please try again.")
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 # ── Login ─────────────────────────────────────────────────────────
+
+
 @app.post("/api/login")
 async def login(data: AuthRequest):
     try:
@@ -158,8 +176,9 @@ async def login(data: AuthRequest):
         })
         if response.session and response.user:
             # Read full_name from user_metadata (set during signup)
-            metadata  = response.user.user_metadata or {}
-            full_name = metadata.get("full_name") or metadata.get("display_name") or ""
+            metadata = response.user.user_metadata or {}
+            full_name = metadata.get(
+                "full_name") or metadata.get("display_name") or ""
             return {
                 "status": "success",
                 "access_token": response.session.access_token,
@@ -170,7 +189,9 @@ async def login(data: AuthRequest):
                     "full_name": full_name,
                 }
             }
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password.")
     except HTTPException:
         raise
     except Exception as e:
@@ -193,8 +214,10 @@ async def chat_endpoint(
     # حماية لو مفيش أي مدخلات
     if not user_query and not uploaded_file:
         return JSONResponse(
-            status_code=400, 
-            content={"status": "error", "message": "برجاء كتابة سؤال أو رفع صورة فحص."}
+            status_code=400,
+            content={
+                "status": "error",
+                "message": "برجاء كتابة سؤال أو رفع صورة فحص."}
         )
 
     # 2. تشغيل موديل الـ .h5 لو فيه صورة مرفوعة
@@ -203,61 +226,68 @@ async def chat_endpoint(
         try:
             # استدعاء دالة الموديل الـ Async باستعمال await كما هو في ملفاتك
             result = await predict_breast_image(uploaded_file)
-            
-            # استخراج النتيجة الصافية بناءً على التقسيم اللي في الصورة (Normal, Benign, Malignant)
+
+            # استخراج النتيجة الصافية بناءً على التقسيم اللي في الصورة (Normal,
+            # Benign, Malignant)
             if isinstance(result, dict):
                 # بنجيب الـ label أو الـ prediction_probabilities
-                image_label = result.get("label") or result.get("prediction") or "Unknown"
+                image_label = result.get("label") or result.get(
+                    "prediction") or "Unknown"
             else:
                 image_label = str(result)
-                
+
         except Exception as e:
             image_label = "Normal"  # Fallback أمن في حالة حدوث خطأ في قراءة ملف معقد
 
-    # ── 🌟 السيناريو الأول: رفع صورة فقط (بدون أي نص) ──
-    if uploaded_file and not user_query:
-        return JSONResponse(content={
-            "status": "success",
-            "mode": "image_only",
-            "prediction": image_label,
-            "message": f"النتيجة: {image_label}"
-        })
-
-    # ── 🌟 السيناريو الثاني: رفع صورة + نص (دمج الموضوعين في رد واحد) ──
+    # --- ☀️ السيناريو الموحد: تحليل النتيجة وتوجيه الـ LLM ---
     if image_label:
-        if user_query:
-            final_query = f"النتيجة: {image_label}. المريضة تسأل: {user_query}. اشرح النتيجة وأجب على سؤالها."
-        else:
-            final_query = f"النتيجة: {image_label}. اشرح النتيجة دي للمريضة."
-    else:
-        # لو مفيش صورة، ابعت سؤال المستخدم بس من غير أي نتيحة
-        final_query = user_query
+        # تعليمات دقيقة: 6-7 سطور، ووضع الحالة بين قوسين
+        instruction = (
+            f"أنت مساعد طبي ذكي. الرد يجب أن يكون من 6 إلى 7 سطور بحد أقصى."
+            f"يجب أن تبدأ بذكر تشخيص الحالة بين قوسين، مثال: ({image_label})."
+            "إذا كانت الحالة (Normal): قل إن النتيجة طبيعية ولا توجد أعراض مقلقة، بأسلوب مطمئن ومختصر."
+            "إذا كانت الحالة (Benign) أو (Malignant): قدم رسالة طمأنينة بسيطة، اشرح الحالة، ثم اسأل المريضة: 'هل تودين أن أشرح لك الخطوات أو الفحوصات التالية الموصى بها؟'."
+            "ممنوع استخدام عبارات ترحيبية طويلة، اجعل الرد طبياً ومباشراً."
+        )
 
-    # تمرير السؤال للـ RAG Stream ليخرج رد ذكي ومباشر
+        base_prompt = f"نتيجة فحص الماموجرام هي: {image_label}."
+
+        if user_query:
+            final_query = f"{instruction} {base_prompt} المريضة تسأل: {user_query}"
+        else:
+            final_query = f"{instruction} {base_prompt}"
+    else:
+        final_query = user_query if user_query else "مرحباً، كيف يمكنني مساعدتك اليوم؟"
+
+    # تمرير الاستعلام الموحد للـ RAG
     generator = get_rag_stream(user_query=final_query)
     return StreamingResponse(generator, media_type="text/event-stream")
 
 # ── Chat (Protected) ──────────────────────────────────────────────
+
+
 class ChatRequest(BaseModel):
     prompt: str = None
     text: str = None
     lang: str = None
 
+
 @app.post("/api/chat/authenticated")
-async def post_chat_authenticated(request: ChatRequest, current_user=Depends(verify_token)):
+async def post_chat_authenticated(
+        request: ChatRequest, current_user=Depends(verify_token)):
     try:
         user_query = request.prompt or request.text or ""
         if not user_query:
             return {"status": "error", "reply": "No query provided"}
 
-        print("\n" + "="*40)
+        print("\n" + "=" * 40)
         print(f"📥 Request from: {current_user.email}")
         print(f"📝 User Query: {user_query}")
 
         response_text = get_rag_response(user_query)
 
         print(f"🤖 AI Answer: {response_text[:120]}...")
-        print("="*40 + "\n")
+        print("=" * 40 + "\n")
 
         return {
             "status": "success",
@@ -272,6 +302,8 @@ async def post_chat_authenticated(request: ChatRequest, current_user=Depends(ver
         return {"status": "error", "reply": f"Backend Error: {str(e)}"}
 
 # ── Delete Message ────────────────────────────────────────────────
+
+
 @app.delete("/api/messages/{msg_id}")
 async def delete_message(msg_id: int, current_user=Depends(verify_token)):
     return {"status": "success", "message": f"Message {msg_id} deleted."}
@@ -282,6 +314,7 @@ class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
 
+
 @app.post("/api/change-password")
 async def change_password(
     data: ChangePasswordRequest,
@@ -290,9 +323,13 @@ async def change_password(
 ):
     try:
         if len(data.new_password) < 6:
-            raise HTTPException(status_code=400, detail="New password must be at least 6 characters.")
+            raise HTTPException(
+                status_code=400,
+                detail="New password must be at least 6 characters.")
         if data.old_password == data.new_password:
-            raise HTTPException(status_code=400, detail="New password must differ from the current one.")
+            raise HTTPException(
+                status_code=400,
+                detail="New password must differ from the current one.")
         # Verify old password by re-authenticating
         try:
             verify_resp = supabase.auth.sign_in_with_password({
@@ -300,9 +337,13 @@ async def change_password(
                 "password": data.old_password,
             })
             if not verify_resp.session:
-                raise HTTPException(status_code=400, detail="Current password is incorrect.")
+                raise HTTPException(
+                    status_code=400,
+                    detail="Current password is incorrect.")
         except Exception:
-            raise HTTPException(status_code=400, detail="Current password is incorrect.")
+            raise HTTPException(
+                status_code=400,
+                detail="Current password is incorrect.")
         # Update password using the user's own token
         token = credentials.credentials
         supabase.auth.update_user({"password": data.new_password})
@@ -313,8 +354,11 @@ async def change_password(
         raise HTTPException(status_code=400, detail=str(e))
 
 # ── Change Email (Protected) ───────────────────────────────────────────
+
+
 class ChangeEmailRequest(BaseModel):
     new_email: str
+
 
 @app.post("/api/change-email")
 async def change_email(
@@ -324,13 +368,20 @@ async def change_email(
     try:
         new_email = data.new_email.strip().lower()
         if not new_email or "@" not in new_email:
-            raise HTTPException(status_code=400, detail="Invalid email address.")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid email address.")
         if not new_email.endswith("@gmail.com"):
-            raise HTTPException(status_code=400, detail="Only @gmail.com addresses are allowed.")
+            raise HTTPException(
+                status_code=400,
+                detail="Only @gmail.com addresses are allowed.")
         if new_email == current_user.email:
-            raise HTTPException(status_code=400, detail="New email is the same as the current one.")
+            raise HTTPException(
+                status_code=400,
+                detail="New email is the same as the current one.")
         supabase.auth.update_user({"email": new_email})
-        return {"status": "success", "message": "Confirmation sent to new email. Please verify it."}
+        return {"status": "success",
+                "message": "Confirmation sent to new email. Please verify it."}
     except HTTPException:
         raise
     except Exception as e:
@@ -350,21 +401,26 @@ async def get_data():
     }
 
 # ── Button Click ──────────────────────────────────────────────────
+
+
 class ButtonClick(BaseModel):
     btn_id: int
 
+
 mock_results = {
-    1: {"status": "Negative",  "message": "الحالة سليمة: نسبة الهيموجلوبين طبيعية.", "color": "green"},
-    2: {"status": "Positive",  "message": "تحذير: حجم الورم يشير لاحتمالية إصابة.", "color": "red"},
-    3: {"status": "Pending",   "message": "المؤشرات غير واضحة، يرجى إعادة التحليل.", "color": "orange"},
-    4: {"status": "Critical",  "message": "حالة طارئة: يرجى التوجه لأقرب مستشفى.",  "color": "darkred"},
+    1: {"status": "Negative", "message": "الحالة سليمة: نسبة الهيموجلوبين طبيعية.", "color": "green"},
+    2: {"status": "Positive", "message": "تحذير: حجم الورم يشير لاحتمالية إصابة.", "color": "red"},
+    3: {"status": "Pending", "message": "المؤشرات غير واضحة، يرجى إعادة التحليل.", "color": "orange"},
+    4: {"status": "Critical", "message": "حالة طارئة: يرجى التوجه لأقرب مستشفى.", "color": "darkred"},
 }
+
 
 @app.post("/button-click")
 async def handle_button(data: ButtonClick):
-    result = mock_results.get(data.btn_id, {"status": "Unknown", "message": "زر غير معروف"})
+    result = mock_results.get(
+        data.btn_id, {
+            "status": "Unknown", "message": "زر غير معروف"})
     return {"success": True, "btn_pressed": data.btn_id, "diagnosis": result}
-
 
 
 # ── Utility Functions for Models ───────────────────────────────────
@@ -379,6 +435,7 @@ def get_model_status():
         "tf_version": tf.__version__
     }
 
+
 async def run_prediction(path: str):
     """Load image from disk and run inference. Passes raw bytes — no wrapper needed."""
     with open(path, "rb") as f:
@@ -386,6 +443,8 @@ async def run_prediction(path: str):
     return await predict_breast_image(image_bytes)
 
 # ── Prediction Status (no auth needed — dev health check) ─────────────────
+
+
 @app.get("/api/predict/status")
 async def predict_status():
     """Returns whether TF is loaded and models are found on disk."""
@@ -397,7 +456,7 @@ def _build_prediction_prompt(pred: dict, lang_name: str = "Arabic") -> str:
     """Turn the structured prediction dict into a rich prompt for Llama 3.1."""
     cancer_status = pred.get("cancer_status", "No Cancer")
     malignancy_status = pred.get("malignancy_status", "Benign")
-    
+
     if cancer_status == "No Cancer":
         mapped_result = "Normal"
     elif malignancy_status == "Malignant":
@@ -422,38 +481,32 @@ async def predict_image(
 ):
     """
     Accepts an uploaded mammogram image, runs the predictor, then asks
-    Llama 3.1 to explain the result in the user's language.
+    groq/Ollama to explain the result in the user's language.
 
     Returns:
         prediction  : raw structured result from the model
         explanation : LLM-generated explanation
         detected_lang : ISO language code
     """
-    # ── 1. Save upload to a temp file ─────────────────────────────────────
-    suffix = os.path.splitext(file.filename or ".jpg")[1] or ".jpg"
-    tmp_path = ""
+
+    # 1. التأكد من نوع الملف
+    if not (file.filename or "").lower().endswith((".jpg", ".jpeg", ".png")):
+        raise HTTPException(status_code=400, detail="Invalid file type.")
+
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            shutil.copyfileobj(file.file, tmp)
-            tmp_path = tmp.name
+        # 2. استدعاء الدالة المباشرة بتمرير ملف الرفع مباشرة
+        prediction = await predict_breast_image(file)
 
-        print("\n" + "="*50)
-        print(f" Predict request from : Test User")
-        print(f"📁 Temp file            : {tmp_path}")
-
-        # — 2. Run model (never raises) ————————————————————
-        prediction = await run_prediction(tmp_path)
-        
         print("============== MODEL OUTPUT ==============")
         print(prediction)
         print("==========================================")
+
         # ── 3. Detect language (default Arabic for this project) ───────────
-        # We don't have a text query here, so we default to Arabic.
-        # If the frontend sends a `lang` query param in the future, use that.
         lang_code, lang_name = "ar", "Arabic"
 
         # ── 4. Build prompt and call Ollama ───────────────────────────────
-        ollama_prompt = _build_prediction_prompt(prediction, lang_name=lang_name)
+        ollama_prompt = _build_prediction_prompt(
+            prediction, lang_name=lang_name)
 
         try:
             ollama_exe = r"C:\Users\ASUS\AppData\Local\Programs\Ollama\ollama.exe"
@@ -473,31 +526,21 @@ async def predict_image(
             explanation = "AI explanation unavailable at this time."
 
         print(f"🤖 Explanation snippet  : {explanation[:120]}...")
-        print("="*50 + "\n")
+        print("=" * 50 + "\n")
 
         return {
-            "status":        "success",
-            "prediction":    prediction,
-            "explanation":   explanation,
+            "status": "success",
+            "prediction": prediction,
+            "explanation": explanation,
             "detected_lang": lang_code,
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         print(f"❌ /api/predict error: {e}")
-        return {
-            "status":      "error",
-            "prediction":  None,
-            "explanation": f"Backend error: {str(e)}",
-        }
-    finally:
-        # Always clean up the temp file
-        if tmp_path and os.path.exists(tmp_path):
-            try:
-                os.remove(tmp_path)
-            except OSError:
-                pass
+        raise HTTPException(
+            status_code=500,
+            detail=f"Prediction failed: {
+                str(e)}")
 
 
 # Run: uvicorn main:app --reload
