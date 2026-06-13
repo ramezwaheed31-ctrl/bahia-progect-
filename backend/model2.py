@@ -130,44 +130,28 @@ def detect_language(text: str) -> tuple[str, str]:
 
 def build_prompt(user_query: str, context: str, clinical_context: str = "", detected_lang: str = "English") -> str:
     """
-    البرومبت النهائي الحاسم لمنع تأليف النتائج الطبية.
-    يجبر الـ LLM على الالتزام بالكلمة الممررة من موديل الـ .h5 في أول سطر تماماً.
+    برومبت طبي حواري شامل لدعم المريضة والإجابة على استفساراتها،
+    سواء كانت الاستفسارات نصية عامة أو مرتبطة بنتيجة أشعة مدمجة في السؤال.
     """
-    # تجهيز السطر الأول بناءً على القيمة الحقيقية المصلحة بالـ argmax
-    if clinical_context:
-        result_line = f"النتيجة الحقيقية للفحص: {clinical_context}"
-    else:
-        result_line = "النتيجة: لم يتم رفع صورة أشعة (استشارة نصية عامة)"
-
     if detected_lang == "Arabic":
         return (
             "أنت طبيب استشاري أول أورام وتوعية طبية (تتحدث بأسلوب حواري، عميق، ومفصل مثل نظام Gemini الطبي).\n"
-            "السيستم قام بفحص أشعة الماموجرام الخاصة بالمريضة عبر موديل التصنيف الرقمي، ومهمتك هي توضيح هذه النتيجة الصافية بدقة وبث الطمأنينة.\n\n"
+            "مهمتك هي قراءة تفاصيل الحالة وسؤال المريضة، وتقديم استشارة طبية دقيقة وبث الطمأنينة.\n\n"
             
-            f"🚨 *قيد تقني صارم جداً ولا غبار عليه (CRITICAL CONSTRAINT)* 🚨:\n"
-            f"يجب عليك إلزاماً وحتماً أن تبدأ أول سطر في إجابتك بطباعة هذه الجملة النصية المحددة بالظبط دون زيادة أو نقصان أو أي تعديل:\n"
-            f"\"{result_line}\"\n"
-            "ممنوع نهائياً كتابة أي مقدمات، ترحيب، رموز إيموجي، أو كلمات تفكير قبل هذه الجملة. اطبعها في السطر الأول فوراً ثم انزل سطر جديد.\n\n"
-            
-            "التعليمات لصياغة الرد (بداية من السطر الثاني ونزولاً):\n"
-            "1. التفسير الطبي الحنون: اشرح للمريضة بأسلوب داعم ونفسي مريح ماذا تعني الكلمة المكتوبة في أول سطر بالظبط (سواء كانت طبيعية، حميدة، أو خبيثة).\n"
+            "التعليمات لصياغة الرد:\n"
+            "1. التفسير الطبي الحنون: اشرح للمريضة بأسلوب داعم ونفسي مريح أي تفاصيل طبية تتعلق بحالتها.\n"
             "2. المعلومات الغزيرة والتوجيه: لا تسرد سطوراً جامدة، بل قدم نصائح وقائية، خطوات الفحص الذاتي، وإرشادات عملية لتجعل حجم الرد كبيراً ومفيداً جداً لأقصى درجة.\n"
             "3. حوار المتابعة التفاعلي: اختم إجابتك دائماً وبشكل إلزامي بأسئلة استكشافية حنونة لمتابعة الحالة مثل: (هل تلاحظين أي أعراض أو تكتلات أخرى حالياً؟ ما هي التحاليل أو الفحوصات التي قمتِ بها مؤخراً لنستطيع توجيهك بشكل أدق؟).\n\n"
             
             f"سياق قاعدة البيانات الطبية المسترجعة للتعزيز الطبي (RAG Context):\n{context}\n\n"
-            f"سؤال المريضة الحالي: {user_query}"
+            f"رسالة المريضة الحالية: {user_query}"
         )
     else:
         return (
             "You are an elite, highly intelligent medical oncologist acting as an empathetic digital consultant (Gemini Medical Depth).\n\n"
             
-            f"🚨 *CRITICAL SYSTEM CONSTRAINT* 🚨:\n"
-            f"You MUST start your response on the very first line by printing this exact string and nothing else:\n"
-            f"\"{result_line}\"\n"
-            "Do NOT write any greetings, introductions, or chain-of-thought tokens before this line.\n\n"
-            
-            "Instructions for the remaining response (starting from line 2):\n"
-            "1. Provide an extensive, comprehensive, long-form clinical explanation based ONLY on this provided classification.\n"
+            "Instructions for the response:\n"
+            "1. Provide an extensive, comprehensive, long-form clinical explanation based on the patient's query and condition.\n"
             "2. End the consultation dynamically by asking strategic medical follow-up questions to understand the patient history.\n\n"
             
             f"Medical Knowledge Base:\n{context}\n\n"

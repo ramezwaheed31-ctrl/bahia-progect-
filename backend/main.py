@@ -224,12 +224,17 @@ async def chat_endpoint(
         })
 
     # ── 🌟 السيناريو الثاني: رفع صورة + نص (دمج الموضوعين في رد واحد) ──
-    clinical_context = ""
     if image_label:
-        clinical_context = f"Mammogram Classification Result: {image_label}"
+        if user_query:
+            final_query = f"النتيجة: {image_label}. المريضة تسأل: {user_query}. اشرح النتيجة وأجب على سؤالها."
+        else:
+            final_query = f"النتيجة: {image_label}. اشرح النتيجة دي للمريضة."
+    else:
+        # لو مفيش صورة، ابعت سؤال المستخدم بس من غير أي نتيحة
+        final_query = user_query
 
-    # تمرير النتيجة الصافية والسؤال للـ RAG Stream ليخرج رد واحد مدمج وذكي
-    generator = get_rag_stream(user_query=user_query, clinical_context=clinical_context)
+    # تمرير السؤال للـ RAG Stream ليخرج رد ذكي ومباشر
+    generator = get_rag_stream(user_query=final_query)
     return StreamingResponse(generator, media_type="text/event-stream")
 
 # ── Chat (Protected) ──────────────────────────────────────────────
