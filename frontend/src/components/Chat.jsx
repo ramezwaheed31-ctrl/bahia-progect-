@@ -3,9 +3,31 @@ import ReactMarkdown from "react-markdown";
 import BahiaLogo from "./BahiaLogo";
 import { translations } from "../i18n";
 
+/**
+ * Helper function to detect if a given text contains Arabic characters.
+ * @param {string} text - The input text to check.
+ * @returns {boolean} True if Arabic, false otherwise.
+ *
+ * دالة مساعدة لتحديد ما إذا كان النص المعطى يحتوي على أحرف عربية.
+ * @param {string} text - النص المراد فحصه.
+ * @returns {boolean} صحيح إذا كان عربياً، خلاف ذلك خطأ.
+ */
+
 function isArabic(text) {
   return typeof text === "string" && /[\u0600-\u06FF]/.test(text);
 }
+
+/**
+ * Retrieves the first name of a user based on language preferences.
+ * @param {object} user - The user object containing names/emails.
+ * @param {string} lang - The active language code ('ar' or 'en').
+ * @returns {string} The first name or first word of user identifier.
+ *
+ * تسترجع الاسم الأول للمستخدم بناءً على اللغة المفضلة.
+ * @param {object} user - كائن المستخدم المحتوي على الأسماء/البريد.
+ * @param {string} lang - رمز اللغة النشطة ('ar' أو 'en').
+ * @returns {string} الاسم الأول أو الكلمة الأولى من معرف المستخدم.
+ */
 
 function getFirstName(user, lang) {
   if (!user) return "";
@@ -255,6 +277,308 @@ function renderMessageText(text, isUser) {
   return <ReactMarkdown>{text}</ReactMarkdown>;
 }
 
+/**
+ * MascotIllustration Component - Renders a premium medical mascot animation (currently decorative).
+ * مكون تمثيلي - يعرض رسوم متحركة للمساعد الطبي المبتكر (تزييني حالياً).
+ */
+function MascotIllustration() {
+  return (
+    <div className="mascot-wrapper">
+      <div className="mascot-bg-pulse" />
+      <svg
+        width="130"
+        height="130"
+        viewBox="0 0 130 130"
+        fill="none"
+        className="floating-mascot"
+      >
+        <ellipse
+          cx="65"
+          cy="118"
+          rx="28"
+          ry="5"
+          fill="rgba(217, 108, 157, 0.12)"
+          filter="blur(2.5px)"
+          className="mascot-shadow"
+        />
+        <circle
+          cx="65"
+          cy="60"
+          r="48"
+          stroke="rgba(239, 163, 200, 0.15)"
+          strokeWidth="1.5"
+          strokeDasharray="3 6"
+        />
+        <circle
+          cx="65"
+          cy="60"
+          r="40"
+          stroke="rgba(217, 108, 157, 0.12)"
+          strokeWidth="1"
+        />
+
+        {/* Floating Heart Decorations */}
+        <path
+          d="M12 42c-1-1-2.5-1-3.5 0s-1 2.5 0 3.5l3.5 3.5 3.5-3.5c1-1 1-2.5 0-3.5s-2.5-1-3.5 0z"
+          fill="var(--pink-light)"
+          opacity="0.3"
+          transform="scale(0.8) translate(10, 10)"
+        />
+        <path
+          d="M112 46c-1-1-2.5-1-3.5 0s-1 2.5 0 3.5l3.5 3.5 3.5-3.5c1-1 1-2.5 0-3.5s-2.5-1-3.5 0z"
+          fill="var(--pink)"
+          opacity="0.35"
+          transform="scale(0.7) translate(30, 20)"
+        />
+
+        {/* Stethoscope around neck */}
+        <path
+          d="M46 72 C 46 92, 84 92, 84 72"
+          stroke="var(--pink)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          opacity="0.8"
+        />
+        <circle cx="65" cy="90" r="4.5" fill="var(--pink)" />
+
+        {/* Mascot Main Body */}
+        <rect
+          x="36"
+          y="38"
+          width="58"
+          height="48"
+          rx="22"
+          fill="url(#mascotBodyGrad)"
+          stroke="var(--pink-border)"
+          strokeWidth="1.5"
+        />
+
+        {/* Face Screen */}
+        <rect x="42" y="44" width="46" height="28" rx="12" fill="#6B4B57" />
+
+        {/* Eyes (Happy arcs) */}
+        <path
+          d="M50 58 Q 54 53 58 58"
+          stroke="#EFA3C8"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          fill="none"
+        />
+        <path
+          d="M72 58 Q 76 53 80 58"
+          stroke="#EFA3C8"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          fill="none"
+        />
+
+        {/* Glowing Cheeks */}
+        <circle cx="48" cy="64" r="2.5" fill="#D96C9D" opacity="0.65" />
+        <circle cx="82" cy="64" r="2.5" fill="#D96C9D" opacity="0.65" />
+
+        {/* Ribbon Emblem on Chest */}
+        <path
+          d="M62 76c1.2-1.2 2.5-1.2 3.7 0c1.2 1.2.4 2.4-.4 3.7l-3 3"
+          stroke="#FFF"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          opacity="0.95"
+        />
+        <path
+          d="M68 76c-1.2-1.2-2.5-1.2-3.7 0c-1.2 1.2-.4 2.4.4 3.7l3 3"
+          stroke="#FFF"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          opacity="0.95"
+        />
+
+        {/* Head Antenna */}
+        <line
+          x1="65"
+          y1="38"
+          x2="65"
+          y2="30"
+          stroke="var(--pink)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
+        <circle cx="65" cy="28" r="3.5" fill="var(--pink)" />
+
+        {/* Ears */}
+        <rect x="29" y="52" width="7" height="16" rx="3.5" fill="#EFA3C8" />
+        <rect x="94" y="52" width="7" height="16" rx="3.5" fill="#EFA3C8" />
+
+        <defs>
+          <linearGradient
+            id="mascotBodyGrad"
+            x1="36"
+            y1="38"
+            x2="94"
+            y2="86"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop stopColor="#FFFFFF" />
+            <stop offset="0.6" stopColor="#FFF8FA" />
+            <stop offset="1" stopColor="#F9E8EE" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+  );
+}
+
+/**
+ * Retrieves the SVG icon based on the icon name for the feature card.
+ * @param {string} iconName - Key representing the icon.
+ *
+ * يسترجع أيقونة SVG المناسبة بناءً على اسم الأيقونة لبطاقات الميزات.
+ * @param {string} iconName - المفتاح المعرف للأيقونة.
+ */
+function getCardIcon(iconName) {
+  switch (iconName) {
+    case "symptoms":
+      return (
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--pink)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+      );
+    case "awareness":
+      return (
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--pink)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 2c3.3 0 6 2.7 6 6c0 2-2 4-3.5 5.5L12 16.5M6 16.5l4.5-4.5M12 2C8.7 2 6 4.7 6 8c0 2 2 4 3.5 5.5" />
+          <path d="M7 21c2-3 4-4.5 5-4.5s3 1.5 5 4.5" />
+        </svg>
+      );
+    case "support":
+      return (
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--pink)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+        </svg>
+      );
+    case "prevention":
+      return (
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--pink)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+/**
+ * Retrieves the SVG icon for a quick suggested question chip by index.
+ * @param {number} index - Index of the chip.
+ *
+ * يسترجع أيقونة SVG المناسبة لبطاقة الاقتراحات السريعة بناءً على مؤشر البطاقة.
+ * @param {number} index - مؤشر البطاقة.
+ */
+function getChipIcon(index) {
+  switch (index) {
+    case 0:
+      return (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          style={{ marginInlineEnd: 6 }}
+        >
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+      );
+    case 1:
+      return (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          style={{ marginInlineEnd: 6 }}
+        >
+          <path d="M4.5 16.5L16.5 4.5M10.5 4.5l9 9M13.5 7.5L16.5 10.5M7.5 13.5L10.5 16.5" />
+        </svg>
+      );
+    case 2:
+      return (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          style={{ marginInlineEnd: 6 }}
+        >
+          <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z" />
+        </svg>
+      );
+    case 3:
+      return (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          style={{ marginInlineEnd: 6 }}
+        >
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+/**
+ * Chat Component - Renders the main chat viewport, handles messages, file uploads,
+ * message deletion via context menus, feature cards, and includes an image lightbox.
+ *
+ * مكون المحادثة - يعرض نافذة المحادثة الرئيسية، ويعالج الرسائل، ورفع الملفات،
+ * وحذف الرسائل من القوائم المنبثقة، وبطاقات الميزات التفاعلية، ويحتوي على عارض صور مكبّر.
+ */
 export default function Chat({
   user,
   messages,
@@ -268,15 +592,20 @@ export default function Chat({
   onToggleSidebar,
   gender,
   onSetGender,
+  onNew,
 }) {
   const [input, setInput] = useState("");
   const [contextMenu, setContextMenu] = useState(null);
   const [renderError, setRenderError] = useState(null);
   const [imageFile, setImageFile] = useState(null);
 
+  const [lightboxImg, setLightboxImg] = useState(null); // Lightbox state for clicked imaAG
+
   const endRef = useRef(null);
   const fileRef = useRef(null);
   const taRef = useRef(null);
+
+  const msgsRef = useRef(null);
 
   const t = translations[lang] ?? translations["ar"];
   const isAr = lang === "ar";
@@ -292,6 +621,20 @@ export default function Chat({
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // Auto scroll to bottom when messages or loading state changes
+  // تمرير تلقائي للأسفل عند تغير الرسائل أو حالة التحميل
+  useEffect(() => {
+    if (msgsRef.current) {
+      msgsRef.current.scrollTo({
+        top: msgsRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }, [messages, loading]);
+
+  // Click outside to close context menu
+  // النقر في الخارج لإغلاق قائمة الخيارات المنبثقة للرسائل
+
   useEffect(() => {
     if (!contextMenu) return;
     const close = () => setContextMenu(null);
@@ -299,12 +642,34 @@ export default function Chat({
     return () => document.removeEventListener("click", close);
   }, [contextMenu]);
 
+  // Auto scale height of textarea based on line input
+  // ملاءمة ارتفاع حقل الإدخال تلقائياً مع حجم النص المكتوب
+
   useEffect(() => {
     if (!taRef.current) return;
     taRef.current.style.height = "auto";
     taRef.current.style.height =
       Math.min(taRef.current.scrollHeight, 130) + "px";
   }, [input]);
+
+  // Clear local input, file attachment, context menu, and lightbox preview when starting a new chat
+  // تفريغ النص، والمرفق، والقائمة المنبثقة، ومعاينة الصورة عند بدء محادثة جديدة
+  useEffect(() => {
+    if (messages.length === 0) {
+      setInput("");
+      setImageFile(null);
+      setContextMenu(null);
+      setLightboxImg(null);
+    }
+  }, [messages]);
+
+  /**
+   * Reads an uploaded image file, generates a local URL for preview, and parses base64.
+   * @param {object} e - Input change event.
+   *
+   * يقرأ الصورة المرفقة، وينشئ رابطاً محلياً للمعاينة، ويستخلص تشفير base64.
+   * @param {object} e - حدث تغيير حقل الإدخال.
+   */
 
   async function handleImagePick(e) {
     const file = e.target.files?.[0];
@@ -321,6 +686,14 @@ export default function Chat({
     e.target.value = "";
   }
 
+  /**
+   * Dispatches text and attachments to the parent message stream trigger.
+   * @param {string} text - Input message query.
+   *
+   * يرسل النص والمرفقات إلى دالة معالجة الرسائل الرئيسية.
+   * @param {string} text - استفسار المستخدم.
+   */
+
   function send(text) {
     try {
       if ((!text?.trim() && !imageFile) || loading) return;
@@ -332,15 +705,39 @@ export default function Chat({
     }
   }
 
+  /**
+   * Opens custom context menu on right clicking user messages.
+   * @param {object} e - ContextMenu event.
+   * @param {object} msg - Target message model.
+   *
+   * يفتح قائمة الخيارات عند النقر بزر الفأرة الأيمن على رسائل المستخدم.
+   * @param {object} e - حدث القائمة المنبثقة.
+   * @param {object} msg - كائن الرسالة المستهدفة.
+   */
+
   function handleContextMenu(e, msg) {
     e.preventDefault();
     setContextMenu({ mouseX: e.clientX, mouseY: e.clientY, msgId: msg.id });
   }
 
+  /**
+   * Dispatches target deletion request via context menu selection.
+   *
+   * يرسل طلب حذف الرسالة المحددة من القائمة المنبثقة.
+   */
+
   function handleDeleteFromMenu() {
     if (contextMenu?.msgId) onDeleteMessage?.(contextMenu.msgId);
     setContextMenu(null);
   }
+
+  /**
+   * Catches Enter key to submit queries, ignoring it if Shift key is pressed.
+   * @param {object} e - KeyDown event.
+   *
+   * يلتقط زر Enter لإرسال النص، متجاهلاً الإرسال إذا كان زر Shift مضغوطاً.
+   * @param {object} e - حدث الضغط على الأزرار.
+   */
 
   function handleKey(e) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -379,6 +776,7 @@ export default function Chat({
         dir={t.dir}
       >
         {/* ── Top bar ── */}
+
         <div className="topbar">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button className="hamburger-btn" onClick={onToggleSidebar}>
@@ -418,10 +816,12 @@ export default function Chat({
           )}
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* Home icon only — no text */}
             <button
               className="tbtn"
-              onClick={() => (window.location.href = "/")}
+              onClick={() => {
+                if (onNew) onNew();
+                else window.location.href = "/";
+              }}
               title={isAr ? "الرئيسية" : "Home"}
               style={{
                 display: "flex",
@@ -435,7 +835,6 @@ export default function Chat({
             >
               🏠
             </button>
-            {/* Language toggle: show full عربي / EN label */}
             <button
               className="tbtn"
               onClick={onToggleLang}
@@ -453,7 +852,8 @@ export default function Chat({
 
         {/* ── Scrollable messages ── */}
         <div
-          className="msgs"
+          ref={msgsRef}
+          className={`msgs ${empty ? "empty" : ""}`}
           style={{
             flex: 1,
             overflowY: "auto",
@@ -472,56 +872,122 @@ export default function Chat({
                 alignItems: "center",
                 width: "100%",
                 maxWidth: 680,
+                position: "relative",
               }}
             >
-              <div
-                className="wlc-ico"
-                style={{
-                  marginBottom: 16,
-                  width: 64,
-                  height: 64,
-                  background:
-                    "linear-gradient(135deg, var(--pink-dim), rgba(232,115,138,0.2))",
-                  border: "none",
-                  boxShadow: "0 8px 24px rgba(232,115,138,0.15)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "50%",
-                }}
-              >
-                <BahiaLogo size={36} />
+              {/* Background decorative patterns */}
+              {/* نقوش وخلفيات تزيينية عائمة */}
+              <div className="hero-bg-patterns">
+                {/* Floating Heart */}
+                <svg
+                  width="40"
+                  height="40"
+                  viewBox="0 0 24 24"
+                  className="pattern-svg svg-heart-1"
+                >
+                  <path
+                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                    fill="var(--pink-light)"
+                    opacity="0.20"
+                  />
+                </svg>
+                {/* Floating Stethoscope outline */}
+                <svg
+                  width="50"
+                  height="50"
+                  viewBox="0 0 24 24"
+                  className="pattern-svg svg-steth-1"
+                  stroke="var(--pink)"
+                  strokeWidth="1"
+                  fill="none"
+                  opacity="0.15"
+                >
+                  <path d="M4.5 2C4.5 2 3 5 3 8C3 13 7 17 12 17C17 17 21 13 21 8C21 5 19.5 2 19.5 2" />
+                  <path d="M12 17V22M12 22H9M12 22H15" />
+                  <circle cx="12" cy="8" r="3" />
+                </svg>
+                {/* Floating Pink Ribbon outline */}
+                <svg
+                  width="60"
+                  height="60"
+                  viewBox="0 0 24 24"
+                  className="pattern-svg svg-ribbon-1"
+                  stroke="var(--pink)"
+                  strokeWidth="1"
+                  fill="none"
+                  opacity="0.18"
+                >
+                  <path d="M17.657 16.657L13.414 12.414A4 4 0 1 0 10.586 12.414L6.343 16.657M12 2C15.314 2 18 4.686 18 8C18 10 16 12 14.5 13.5" />
+                </svg>
+                {/* Floating Medical Cross */}
+                <svg
+                  width="35"
+                  height="35"
+                  viewBox="0 0 24 24"
+                  className="pattern-svg svg-cross-1"
+                  fill="var(--pink-light)"
+                  opacity="0.18"
+                >
+                  <path d="M19 10.5h-5.5V5h-3v5.5H5v3h5.5V19h3v-5.5H19z" />
+                </svg>
               </div>
-              <div
-                className="wlc-title"
-                style={{
-                  marginTop: 8,
-                  fontSize: 26,
-                  fontWeight: 800,
-                  marginBottom: 6,
-                  color: "var(--text)",
-                  letterSpacing: "-0.5px",
-                }}
-              >
+
+              {/* Logo Illustration */}
+              {/* رسم الشعار والرمز التعريفي */}
+              <div className="mascot-wrapper" style={{ animation: "none" }}>
+                <BahiaLogo size={60} />
+              </div>
+
+              {/* Welcoming headline */}
+              {/* عنوان الترحيب للمستخدم */}
+              <div className="wlc-title">
                 {t.welcomeTitle?.(firstName, gender) ?? `أهلاً، ${firstName}`}
               </div>
+
+              {/* Short description - gender-aware logic fixed */}
+              {/* وصف ترحيبي مبسط - تم إصلاح منطق مراعاة الجنس */}
               <div
                 className="wlc-sub"
-                style={{
-                  whiteSpace: "pre-line",
-                  marginBottom: 20,
-                  fontSize: 14,
-                  lineHeight: 1.6,
-                  color: "var(--text-muted)",
-                  maxWidth: 400,
-                  textAlign: "center",
-                }}
+                style={{ whiteSpace: "pre-line", textAlign: "center" }}
               >
-                {welcomeSub}
+                {isMale ? (t.welcomeSubMale ?? t.welcomeSub) : t.welcomeSub}
+              </div>
+
+              {/* Grid of 4 feature cards - gender-aware translations */}
+              {/* شبكة من 4 بطاقات ميزات - مع مراعاة الجنس */}
+              <div className="feature-grid">
+                {(isMale
+                  ? (t.featureCardsMale ?? t.featureCards)
+                  : (t.featureCards ?? [])
+                ).map((card, idx) => (
+                  <div
+                    key={idx}
+                    className="feature-card"
+                    onClick={() => send(card.query)}
+                  >
+                    <div className="feature-icon">{getCardIcon(card.icon)}</div>
+                    <div className="feature-label">{card.label}</div>
+                    <div className="feature-title">{card.title}</div>
+                    <div className="feature-desc">{card.desc}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Suggested Question Chips with icons */}
+              {/* بطاقات الاقتراحات السريعة */}
+              <div className="chips" style={{ marginTop: 24, width: "100%" }}>
+                {(t.quickChips ?? []).map((c, idx) => (
+                  <button key={c} className="chip" onClick={() => send(c)}>
+                    {getChipIcon(idx)}
+                    {c}
+                  </button>
+                ))}
               </div>
             </div>
           ) : (
             <>
+              {/* Rendering list of messages */}
+              {/* عرض قائمة الرسائل المتبادلة */}
               {safeMessages.map((m, i) => {
                 const hasText = m.text && m.text.trim();
                 const hasImage = !!m.imagePreview;
@@ -554,6 +1020,7 @@ export default function Chat({
                         <img
                           src={m.imagePreview}
                           alt=""
+                          onClick={() => setLightboxImg(m.imagePreview)}
                           style={{
                             display: "block",
                             maxWidth: hasText ? 220 : 260,
@@ -561,10 +1028,13 @@ export default function Chat({
                             borderRadius: hasText ? 10 : 14,
                             marginBottom: hasText ? 8 : 0,
                             objectFit: "cover",
+                            cursor: "pointer",
+                            transition: "transform 0.2s",
                             ...(hasText
                               ? {}
                               : { border: "1.5px solid var(--border-md)" }),
                           }}
+                          className="clickable-chat-img"
                         />
                       )}
                       {hasText && (
@@ -577,6 +1047,11 @@ export default function Chat({
                           }}
                         >
                           {renderMessageText(m.text, isUser)}
+                          {isUser ? (
+                            (m.text ?? "")
+                          ) : (
+                            <ReactMarkdown>{m.text ?? ""}</ReactMarkdown>
+                          )}
                         </div>
                       )}
                       <div
@@ -593,58 +1068,57 @@ export default function Chat({
                 );
               })}
 
+              {loading && (
+                <div className="mrow ai">
+                  <div className="mav ai">
+                    <BahiaLogo size={20} />
+                  </div>
+                  <div className="tdots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </div>
+              )}
               <div ref={endRef} />
             </>
           )}
         </div>
 
-        {/* ── Input zone — always centered ── */}
-        <div
-          style={{
-            padding: "12px 28px 20px",
-            background: "var(--warm)",
-            borderTop: "1px solid var(--border)",
-            flexShrink: 0,
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
+        {/* ── Input zone — always fixed at bottom ── */}
+        <div className="input-zone">
           <div style={{ width: "100%", maxWidth: 680 }}>
-            {/* Disclaimer */}
-            <div
-              className="disc"
-              style={{
-                margin: "0 0 10px",
-                borderRadius: 10,
-                border: "1px solid var(--pink-border)",
-              }}
-            >
-              {disclaimer}
+            {/* Disclaimer card with shield icon */}
+            <div className="disc" style={{ marginBottom: 8 }}>
+              <div className="disc-icon">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--pink)"
+                  strokeWidth="2.5"
+                >
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              </div>
+              <div style={{ flex: 1 }}>{disclaimer}</div>
             </div>
 
-            {/* Image preview — clean card, no pink bg */}
+            {/* Image upload preview */}
             {imageFile && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  marginBottom: 8,
-                  padding: "8px 12px",
-                  background: "var(--surface)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 12,
-                }}
-              >
+              <div className="image-preview-area">
                 <img
                   src={imageFile.preview}
                   alt=""
+                  onClick={() => setLightboxImg(imageFile.preview)}
                   style={{
                     width: 52,
                     height: 52,
                     objectFit: "cover",
                     borderRadius: 8,
                     flexShrink: 0,
+                    cursor: "pointer",
                   }}
                 />
                 <span
@@ -676,7 +1150,7 @@ export default function Chat({
               </div>
             )}
 
-            {/* Modern input row */}
+            {/* Modern input box */}
             <div
               className="modern-input-box"
               style={{ flexDirection: isAr ? "row-reverse" : "row" }}
@@ -689,12 +1163,11 @@ export default function Chat({
                 onChange={handleImagePick}
               />
 
-              {/* Arabic: attach btn on the right (start of RTL); English: attach btn after textarea */}
-              {isAr && (
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <button
                   className="ibtn"
                   onClick={() => fileRef.current?.click()}
-                  title="إرفاق صورة"
+                  title={isAr ? "إرفاق صورة" : "Attach image"}
                   disabled={loading}
                 >
                   <svg
@@ -707,12 +1180,12 @@ export default function Chat({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <rect x="3" y="3" width="18" height="18" rx="3" ry="3" />
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                     <circle cx="8.5" cy="8.5" r="1.5" />
                     <polyline points="21 15 16 10 5 21" />
                   </svg>
                 </button>
-              )}
+              </div>
 
               <textarea
                 ref={taRef}
@@ -741,38 +1214,11 @@ export default function Chat({
                 }}
               />
 
-              {/* English: attach btn on the right side, before send btn */}
-              {!isAr && (
-                <button
-                  className="ibtn"
-                  onClick={() => fileRef.current?.click()}
-                  title="Attach image"
-                  disabled={loading}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="3" y="3" width="18" height="18" rx="3" ry="3" />
-                    <circle cx="8.5" cy="8.5" r="1.5" />
-                    <polyline points="21 15 16 10 5 21" />
-                  </svg>
-                </button>
-              )}
-
-              {/* Send btn — at end of text direction (after textarea) */}
               <button
                 className="sbtn"
                 onClick={() => send(input)}
                 disabled={(!input.trim() && !imageFile) || loading}
               >
-                {/* Arrow points right for LTR, left for RTL */}
                 {isAr ? (
                   <svg
                     width="18"
@@ -815,10 +1261,26 @@ export default function Chat({
                   {c}
                 </button>
               ))}
+              <div className="privacy-footer">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0110 0v4" />
+                </svg>
+                <span>{t.privacyNote}</span>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* ── Context Menu for Message deletion ── */}
+        {/* ── القائمة المنبثقة لحذف الرسائل ── */}
         {contextMenu && (
           <div
             className="ctx-menu"
@@ -827,6 +1289,32 @@ export default function Chat({
           >
             <div className="ctx-item" onClick={handleDeleteFromMenu}>
               🗑 {isAr ? "حذف الرسالة" : "Delete Message"}
+            </div>
+          </div>
+        )}
+
+        {/* ── Fullscreen Lightbox Overlay for Image Previews ── */}
+        {/* ── نافذة عارض الصور المكبرة بكامل الشاشة ── */}
+        {lightboxImg && (
+          <div
+            className="lightbox-overlay"
+            onClick={() => setLightboxImg(null)}
+          >
+            <div
+              className="lightbox-content"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="lightbox-close"
+                onClick={() => setLightboxImg(null)}
+              >
+                ✕
+              </button>
+              <img
+                src={lightboxImg}
+                alt="Enlarged preview"
+                className="lightbox-img"
+              />
             </div>
           </div>
         )}
