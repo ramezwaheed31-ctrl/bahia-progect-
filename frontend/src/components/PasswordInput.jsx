@@ -21,14 +21,21 @@ export default function PasswordInput({
   inputStyle = {},
 }) {
   const [show, setShow] = useState(false);
-  const isRTL = typeof document !== "undefined" && (
-    document.dir === "rtl" ||
-    document.documentElement.dir === "rtl" ||
-    document.documentElement.lang === "ar"
-  );
+  const isRTL =
+    typeof document !== "undefined" &&
+    (document.dir === "rtl" ||
+      document.documentElement.dir === "rtl" ||
+      document.documentElement.lang === "ar");
 
   return (
-    <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+    <div
+      style={{
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        width: "100%",
+      }}
+    >
       <input
         type={show ? "text" : "password"}
         value={value}
@@ -49,7 +56,7 @@ export default function PasswordInput({
         aria-label={show ? "Hide password" : "Show password"}
         style={{
           position: "absolute",
-          insetInlineEnd: "12px",   /* works for both LTR and RTL */
+          insetInlineEnd: "12px" /* works for both LTR and RTL */,
           background: "none",
           border: "none",
           cursor: "pointer",

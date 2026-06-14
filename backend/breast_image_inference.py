@@ -24,8 +24,10 @@ print(f"[*] Loading model from: {MODEL_PATH}", flush=True)
 _model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 print(f"[+] Model loaded OK", flush=True)
 
+
 def load_models():
     return _model, _model
+
 
 async def predict_breast_image(file_or_bytes) -> dict:
     ts = time.time()
@@ -84,7 +86,7 @@ async def upload_mammogram(file: UploadFile = File(...)):
             status_code=400,
             detail="Invalid file type. Please upload a .jpg or .png image."
         )
-        
+
     try:
         result = await predict_breast_image(file)
         return result
